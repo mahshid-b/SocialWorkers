@@ -7,11 +7,12 @@ from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
 from django.urls import reverse_lazy
 from .models import *
+from centers.models import *
 
 
 class LoginView(View):
     def get(self, request):
-        return render(request, "users/login.html")
+        return render(request, "allusers/login.html")
 
     def post(self, request):
         personnel_code = request.POST.get("personnelCode")
@@ -21,10 +22,23 @@ class LoginView(View):
         if user is not None:
             login(request, user)
             messages.success(request, "با موفقیت وارد شدید")
-            return redirect("")
+            
+            try:
+                profile = user.ProfileUser
+                role = profile.position.group_name if profile.position else None
+            except ProfileTB.DoesNotExist:
+                role = None
+
+            if role == "Manager":
+                return redirect("manager_dashboard")
+            elif role == "Employee":
+                return redirect("employee_dashboard")
+            else:
+                messages.warning(request, "نقش شما مشخص نیست")
+                return redirect("login") 
         else:
             messages.error(request, "کاربر شناسایی نشد")
-            return render(request, "users/login.html")
+            return render(request, "allusers/login.html")
 
 
 class LogoutView(LoginRequiredMixin, View):
@@ -32,6 +46,16 @@ class LogoutView(LoginRequiredMixin, View):
         logout(request)
         messages.info(request, "با موفقیت خارج شدید")
         return redirect("login")
+    
+class AllusersView(LoginRequiredMixin,View):
+    def get(self,request, *args, **kwargs):
+        users = ProfileTB.objects.all()
+        msg = self.request.GET.get('msg')
+        context ={
+            'users':users,
+            'msg':msg,
+        }
+        return render(request,'allusers/users.html',context)
     
 class UserCreateView(LoginRequiredMixin, UserPassesTestMixin, View):
     def test_func(self):
@@ -41,7 +65,7 @@ class UserCreateView(LoginRequiredMixin, UserPassesTestMixin, View):
     def get(self, request):
         positions = PositionTB.objects.all()
         genders = GenderTB.objects.all()
-        return render(request, "users/create_user.html", {"positions": positions, "genders": genders})
+        return render(request, "allusers/createuser.html", {"positions": positions, "genders": genders})
 
     def post(self, request):
         personnel_code = request.POST.get("personnelCode")
@@ -80,40 +104,75 @@ class UserEditView(LoginRequiredMixin, UserPassesTestMixin, View):
         requester_role = requester.ProfileUser.position.group_name
         return requester == target_user or requester_role in ["Manager", "CEO"]
 
-    def get(self, request, user_id):
-        user_obj = get_object_or_404(User, id=user_id)
-        positions = PositionTB.objects.all()
-        genders = GenderTB.objects.all()
-        return render(request, "users/edit_user.html", {
-            "user_obj": user_obj,
-            "positions": positions,
-            "genders": genders
-        })
+    def get(self, request, pk,*args, **kwargs):
+        try:
+            user = User.objects.get(id=pk)
+            centers = CenterTB.objects.all()
+            context ={'user':user,
+                      'centers':centers,}
+            return render(request,"allusers/'edituser.html",context)
+        except User.DoesNotExist:
+            return redirect(f'/allusers/{pk}/?msg= کاربری با این ایدی یافت نشد.')
+    
+    def post(self,request,pk,*args, **kwargs):
+        try:
+            user = User.objects.get(id=pk)
+        except:
+            return redirect(f"/allusers/{pk}/?msg= کاربر یافت نشد")
+        first_name = self.request.POST['first_name']
+        if first_name is not None and first_name !='':
+            user.first_name = first_name 
+        last_name = self.request.POST['last_name']
+        if last_name is not None and last_name !='':
+            user.last_name = last_name 
+        personnelCode = self.request.POST['personnelCode']
+        if personnelCode is not None and personnelCode !='':
+            user.username = personnelCode
+        phone = self.request.POST['phone']
+        if phone is not None and phone !='':
+            user.password = phone
+        user.save()
+        userProfile = ProfileTB.objects.get(user=user)
+        phone = self.request.POST['phone']
+        if phone is not None and phone !='':
+            userProfile.phone = phone
+        position = self.request.POST['position']
+        if position is not None and position !='--':
+            userProfile.position = position
+        gender = self.request.POST['gender']
+        if gender is not None and gender !='--':
+            userProfile.gender = gender
+        age = self.request.POST['age']
+        if age is not None and age !='':
+            userProfile.age = age
+        desc = self.request.POST['desc']
+        if desc is not None and desc !='':
+            userProfile.desc = desc
+        meliCardCode = self.request.POST['meliCardCode']
+        if meliCardCode is not None and meliCardCode !='':
+            userProfile.meliCardCode = meliCardCode
+        personnelCode = self.request.POST['personnelCode']
+        if personnelCode is not None and personnelCode !='':
+            userProfile.personnelCode = personnelCode
+        center = self.request.POST['center']
+        if center is not None and center !='--':
+            userProfile.center = center
+        userProfile.save()
 
-    def post(self, request, user_id):
-        user_obj = get_object_or_404(User, id=user_id)
-        profile = user_obj.ProfileUser
-
-        profile.age = request.POST.get("age")
-        profile.desc = request.POST.get("desc")
-        profile.gender_id = request.POST.get("gender")
-        profile.save()
-
-        messages.success(request, "User updated successfully.")
-        return redirect("user_list")
-
-
+        return redirect(f'/allusers/edituser/{pk}/?msg= تغییرات کاربر با موفقیت ثبت شد.')
+        
+        
 class UserDeleteView(LoginRequiredMixin, UserPassesTestMixin, View):
     def test_func(self):
         position = self.request.user.ProfileUser.position.group_name
         return position in ["Manager", "CEO"]
-
-    def get(self, request, user_id):
-        user_obj = get_object_or_404(User, id=user_id)
-        return render(request, "users/confirm_delete.html", {"user_obj": user_obj})
-
-    def post(self, request, user_id):
-        user_obj = get_object_or_404(User, id=user_id)
-        user_obj.delete()
-        messages.success(request, "User deleted successfully.")
-        return redirect("user_list")
+    def post(self,request,*args, **kwargs):
+        try:
+            userId =self.request.POST['userId']
+            if userId is not None or userId !='':
+                user = User.objects.get(id=userId)
+                user.delete()
+                return redirect('/allusers/?msg=کاربر با موفقیت حذف شد.')
+        except:
+            return redirect('/allusers/?msg=دیتای ارسالی دارای مشکل است.')
+         

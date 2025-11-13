@@ -1,31 +1,33 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="fa">
 <head>
     <meta charset="UTF-8">
-    <title>صفحه ورود</title>
+    <title>ورود به سیستم</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f2f2f2; }
-        .container { max-width: 400px; margin: 100px auto; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        input[type="text"], input[type="password"] { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: 1px solid #ccc; }
-        button { width: 100%; padding: 10px; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        button:hover { background-color: #45a049; }
-        .error { color: red; margin-bottom: 10px; }
+        body {font-family: sans-serif; background: #f6f7fb; display: flex; justify-content: center; align-items: center; height: 100vh;}
+        form {background: white; padding: 30px; border-radius: 12px; box-shadow: 0 0 15px rgba(0,0,0,0.1);}
+        input, button {width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px;}
+        button {background: #4c6ef5; color: white; border: none; cursor: pointer;}
+        button:hover {background: #3b5bdb;}
+        .msg {color: red; text-align: center;}
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>ورود به سیستم</h2>
-        {% if error %}
-            <div class="error">{{ error }}</div>
-        {% endif %}
-        <form method="POST">
-            {% csrf_token %}
-            <label>نام کاربری:</label>
-            <input type="text" name="username" required>
-            <label>رمز عبور:</label>
-            <input type="password" name="password" required>
-            <button type="submit">ورود</button>
-        </form>
-    </div>
+    <form method="post">
+        {% csrf_token %}
+        <h2 style="text-align:center;">ورود کاربران</h2>
+        <label>کد پرسنلی:</label>
+        <input type="text" name="personnelCode" placeholder="مثلاً 12345" required>
+        
+        <label>کد ملی:</label>
+        <input type="password" name="meliCardCode" placeholder="کد ملی خود را وارد کنید" required>
+        
+        <button type="submit">ورود</button>
+
+        {% for message in messages %}
+            <p class="msg">{{ message }}</p>
+        {% endfor %}
+    </form>
 </body>
 </html>

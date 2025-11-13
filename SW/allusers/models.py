@@ -28,10 +28,7 @@ class ProfileTB(models.Model):
     desc = models.TextField(null = True , blank = True)
     meliCardCode = models.IntegerField(null=True,blank=True)
     personnelCode = models.IntegerField( null=True,blank=True)
-    otp_code = models.CharField(max_length=15, blank=True, null=True)
     center = models.ForeignKey('centers.CenterTB', on_delete=models.CASCADE, null=True, blank=True,related_name='profileCenter')
     
-    def is_otp_valid(self, otp):
-        return self.otp_code == otp
     def __str__(self):
         return self.user.username 
