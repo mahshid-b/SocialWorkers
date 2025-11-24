@@ -11,8 +11,9 @@ from centers.models import *
 
 
 class LoginView(View):
+    template_name= "allusers/login.html"
     def get(self, request):
-        return render(request, "allusers/login.html")
+        return render(request,self.template_name)
 
     def post(self, request):
         personnel_code = request.POST.get("personnelCode")
@@ -22,13 +23,13 @@ class LoginView(View):
         if user is not None:
             login(request, user)
             messages.success(request, "با موفقیت وارد شدید")
-            
             try:
-                profile = user.ProfileUser
-                role = profile.position.group_name if profile.position else None
+                profile = ProfileTB.objects.get(user=user)
             except ProfileTB.DoesNotExist:
-                role = None
-
+                messages.error(request, "پروفایلی برای این کاربر ثبت نشده است")
+                return redirect("login")
+            
+            role = profile.position.group_name if profile.position else None
             if role == "Manager":
                 return redirect("manager_dashboard")
             elif role == "Employee":
@@ -47,56 +48,6 @@ class LogoutView(LoginRequiredMixin, View):
         messages.info(request, "با موفقیت خارج شدید")
         return redirect("login")
     
-class AllusersView(LoginRequiredMixin,View):
-    def get(self,request, *args, **kwargs):
-        users = ProfileTB.objects.all()
-        msg = self.request.GET.get('msg')
-        context ={
-            'users':users,
-            'msg':msg,
-        }
-        return render(request,'allusers/users.html',context)
-    
-class UserCreateView(LoginRequiredMixin, UserPassesTestMixin, View):
-    def test_func(self):
-        position = self.request.user.ProfileUser.position.group_name
-        return position in ["Manager", "CEO"]
-
-    def get(self, request):
-        positions = PositionTB.objects.all()
-        genders = GenderTB.objects.all()
-        return render(request, "allusers/createuser.html", {"positions": positions, "genders": genders})
-
-    def post(self, request):
-        personnel_code = request.POST.get("personnelCode")
-        meliCardCode = request.POST.get("meliCardCode")
-        position_id = request.POST.get("position")
-        gender_id = request.POST.get("gender")
-        age = request.POST.get("age")
-        desc = request.POST.get("desc")
-
-        if User.objects.filter(username=personnel_code).exists():
-            messages.error(request, "کاربری با این کدپرسنلی ثبت شده است.")
-            return redirect("create_user")
-
-        user = User.objects.create_user(username=personnel_code, password=meliCardCode)
-        position = PositionTB.objects.get(id=position_id)
-        gender = GenderTB.objects.get(id=gender_id)
-
-        ProfileTB.objects.create(
-            user=user,
-            position=position,
-            meliCardCode =meliCardCode,
-            gender=gender,
-            age=age,
-            desc=desc,
-            personnelCode=personnel_code
-        )
-
-        messages.success(request, f"کاربر {personnel_code} با موفقیت ثبت نام شد")
-        return redirect("")
-
-
 class UserEditView(LoginRequiredMixin, UserPassesTestMixin, View):
     def test_func(self):
         target_user = get_object_or_404(User, id=self.kwargs["user_id"])
